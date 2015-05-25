@@ -15,6 +15,7 @@ import warnings
 
 from raven.utils.serializer import transform
 from raven.utils import six
+import subprocess
 
 
 _coding_re = re.compile(r'coding[:=]\s*([-\w.]+)')
@@ -60,7 +61,7 @@ def get_lines_from_file(filename, lineno, context_lines, loader=None, module_nam
             pass
 
         if source is None:
-            return None, None, None
+            return None, None, None, None
 
         # decoding源代码
         encoding = 'utf8'
@@ -77,15 +78,48 @@ def get_lines_from_file(filename, lineno, context_lines, loader=None, module_nam
     lower_bound = max(0, lineno - context_lines)
     upper_bound = min(lineno + 1 + context_lines, len(source))
 
+    related_authors = set()
     try:
         pre_context = [line.strip('\r\n') for line in source[lower_bound:lineno]]
         context_line = source[lineno].strip('\r\n')
         post_context = [line.strip('\r\n') for line in source[(lineno + 1):upper_bound]]
+
+        # 通过git获取相关的信息
+        try:
+            blame_lines = get_code_authors(filename)
+            for i in range(loader, upper_bound):
+                author = get_code_last_auth(blame_lines, i)
+                if author:
+                    related_authors.add(author)
+        except:
+            pass
+
     except IndexError:
         # the file may have changed since it was loaded into memory
-        return None, None, None
+        return None, None, None, None
 
-    return pre_context, context_line, post_context
+    return pre_context, context_line, post_context, related_authors
+
+def get_code_authors(filename):
+    """
+        需要保证默认的git能用
+        :param filename:
+        :return:
+    """
+    output = subprocess.check_output(["git", "blame", filename])
+    lines = output.split("\n")
+    return lines
+
+def get_code_last_auth(lines, index):
+    # print "BLAME LINE: ", lines[index]
+
+    match = re.search("\s\((\w+)\s", lines[index])
+    if match:
+        return match.group(1)
+    else:
+        return None
+
+
 
 
 def label_from_frame(frame):
@@ -228,7 +262,7 @@ def get_stack_info(frames, transformer=transform):
 
         # 局部变量不暴露
         if _getitem_from_frame(f_locals, '__traceback_hide__'):
-            print "__traceback_hide__"
+            # print "__traceback_hide__"
             continue
 
         f_globals = getattr(frame, 'f_globals', {})
@@ -252,9 +286,15 @@ def get_stack_info(frames, transformer=transform):
 
         # 1. 如果存在lineno和abs_path,  则读取Context相关的源码
         if lineno is not None and abs_path:
-            pre_context, context_line, post_context = get_lines_from_file(abs_path, lineno, 5, loader, module_name)
+            pre_context, context_line, post_context, author_set = get_lines_from_file(abs_path, lineno, 5, loader, module_name)
         else:
-            pre_context, context_line, post_context = None, None, None
+            pre_context, context_line, post_context, author_set = None, None, None, None
+
+        # print "\n".join(pre_context)
+        # print "-----------------------"
+        # print context_line
+        # print "-----------------------"
+        # print "\n".join(post_context)
 
         # Try to pull a relative file path
         # This changes /foo/site-packages/baz/bar.py into baz/bar.py
@@ -290,6 +330,7 @@ def get_stack_info(frames, transformer=transform):
                 'pre_context': pre_context,
                 'context_line': context_line,
                 'post_context': post_context,
+                'author_set': "\n".join(author_set)
             })
 
         results.append(frame_result)

@@ -79,6 +79,4 @@ class GetLineFromFileTest(TestCase):
     def test_non_ascii_file(self):
         import os.path
         filename = os.path.join(os.path.dirname(__file__), 'utf8_file.txt')
-        self.assertEqual(
-            get_lines_from_file(filename, 3, 1),
-            (['Some code here'], '', ['lorem ipsum']))
+        self.assertEqual(get_lines_from_file(filename, 3, 1)[:3], (['Some code here'], '', ['lorem ipsum'], []))

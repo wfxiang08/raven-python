@@ -50,6 +50,12 @@ class Exception(BaseEvent):
         return exc['type']
 
     def capture(self, exc_info=None, **kwargs):
+        """
+            获取异常相关的信息
+
+            frames: 包含了从最外层函数调用到最里层的函数调用的 Code的Context, 以及局部变量信息
+
+        """
         if not exc_info or exc_info is True:
             exc_info = sys.exc_info()
 
@@ -58,9 +64,9 @@ class Exception(BaseEvent):
 
         exc_type, exc_value, exc_traceback = exc_info
 
-        print "exc_traceback: ",
-        print exc_traceback
-        print "---------"
+        # print "exc_traceback: ",
+        # print exc_traceback
+        # print "---------"
 
         try:
             frames = get_stack_info(iter_traceback_frames(exc_traceback), transformer=self.transform)
@@ -70,8 +76,8 @@ class Exception(BaseEvent):
                 exc_module = str(exc_module)
             exc_type = getattr(exc_type, '__name__', '<unknown>')
 
-            print "exc_module: ", exc_module
-            print "exc_type: ", exc_type
+            # print "exc_module: ", exc_module
+            # print "exc_type: ", exc_type
 
             return {
                 'level': kwargs.get('level', logging.ERROR),
