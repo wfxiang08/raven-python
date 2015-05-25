@@ -160,6 +160,9 @@ class Client(object):
             secret_key = o.get('secret_key')
 
         self.servers = servers
+
+        # print "Servers: ", servers
+
         self.public_key = public_key
         self.secret_key = secret_key
         self.project = project or defaults.PROJECT
@@ -281,6 +284,8 @@ class Client(object):
             event_type = 'raven.events.%s' % event_type
 
         handler = self.get_handler(event_type)
+
+        # 1. 获取到result之后，如何处理result呢?
         result = handler.capture(**kwargs)
 
         # data (explicit) culprit takes over auto event detection
@@ -292,6 +297,7 @@ class Client(object):
             if k not in data:
                 data[k] = v
 
+        # 2. 如何处理? sentry.interfaces.Stacktrace
         if stack and 'sentry.interfaces.Stacktrace' not in data:
             if stack is True:
                 frames = iter_stack_frames()
@@ -299,12 +305,7 @@ class Client(object):
             else:
                 frames = stack
 
-            data.update({
-                'sentry.interfaces.Stacktrace': {
-                    'frames': get_stack_info(frames,
-                        transformer=self.transform)
-                },
-            })
+            data.update({'sentry.interfaces.Stacktrace': {'frames': get_stack_info(frames, transformer=self.transform)},})
 
         if 'sentry.interfaces.Stacktrace' in data:
             if self.include_paths:
@@ -347,6 +348,7 @@ class Client(object):
                 data['extra'].setdefault(k, v)
 
         # Add default tag context
+        # tags在什么地方定义的呢?
         if self.tags:
             for k, v in six.iteritems(self.tags):
                 data['tags'].setdefault(k, v)
@@ -462,9 +464,9 @@ class Client(object):
         if not self.is_enabled():
             return
 
-        data = self.build_msg(
-            event_type, data, date, time_spent, extra, stack, tags=tags,
-            **kwargs)
+        data = self.build_msg(event_type, data, date, time_spent, extra, stack, tags=tags, **kwargs)
+
+        print "Data: ", data
 
         self.send(**data)
 
@@ -517,7 +519,9 @@ class Client(object):
         def failed_send(e):
             self._failed_send(e, url, data)
 
+        # 如何快速处理同步，异步的问题?
         try:
+            # "POST /api/3/store/ HTTP/1.1" 200 53 "-" "raven-python/3.5.2"
             parsed = urlparse(url)
             transport = self._registry.get_transport(parsed)
             if transport.async:
@@ -533,6 +537,7 @@ class Client(object):
         """
         Serializes the message and passes the payload onto ``send_encoded``.
         """
+        # 首先序列化数据
         message = self.encode(data)
 
         return self.send_encoded(message, auth_header=auth_header)
@@ -543,6 +548,7 @@ class Client(object):
         payload off to ``send_remote`` for each server specified in the servers
         configuration.
         """
+        # 例如: raven-python/3.5.2
         client_string = 'raven-python/%s' % (raven.VERSION,)
 
         if not auth_header:
@@ -555,6 +561,8 @@ class Client(object):
                 api_secret=self.secret_key,
             )
 
+        # url的格式
+        # http://xxx:xxx@sentry.xxx.xxx/xx
         for url in self.servers:
             headers = {
                 'User-Agent': client_string,
@@ -566,7 +574,9 @@ class Client(object):
 
     def encode(self, data):
         """
-        Serializes ``data`` into a raw string.
+            Serializes ``data`` into a raw string.
+
+            通过json & base64编码对数据进行序列化
         """
         return base64.b64encode(zlib.compress(json.dumps(data).encode('utf8')))
 

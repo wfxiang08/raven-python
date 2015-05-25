@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 """
 raven.transport.builtins
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -239,6 +240,7 @@ class HTTPTransport(Transport):
         if not all([netloc, project, url.username, url.password]):
             raise ValueError('Invalid Sentry DSN: %r' % url.geturl())
 
+        # 如何获取Server的URL呢?
         server = '%s://%s%s/api/%s/store/' % (
             url.scheme, netloc, path, project)
         if url.query:

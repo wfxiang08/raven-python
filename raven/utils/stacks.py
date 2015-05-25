@@ -330,7 +330,7 @@ def get_stack_info(frames, transformer=transform):
                 'pre_context': pre_context,
                 'context_line': context_line,
                 'post_context': post_context,
-                'author_set': "\n".join(author_set)
+                'author_set': author_set
             })
 
         results.append(frame_result)
