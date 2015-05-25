@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 """
 raven.events
 ~~~~~~~~~~~~
@@ -57,15 +58,20 @@ class Exception(BaseEvent):
 
         exc_type, exc_value, exc_traceback = exc_info
 
+        print "exc_traceback: ",
+        print exc_traceback
+        print "---------"
+
         try:
-            frames = get_stack_info(
-                iter_traceback_frames(exc_traceback),
-                transformer=self.transform)
+            frames = get_stack_info(iter_traceback_frames(exc_traceback), transformer=self.transform)
 
             exc_module = getattr(exc_type, '__module__', None)
             if exc_module:
                 exc_module = str(exc_module)
             exc_type = getattr(exc_type, '__name__', '<unknown>')
+
+            print "exc_module: ", exc_module
+            print "exc_type: ", exc_type
 
             return {
                 'level': kwargs.get('level', logging.ERROR),

@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 """
 raven.utils.serializer.manager
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,5 +89,6 @@ register = manager.register
 
 
 def transform(value, manager=manager, **kwargs):
+    # 如何序列化value呢?
     with closing(Serializer(manager)) as serializer:
         return serializer.transform(value, **kwargs)

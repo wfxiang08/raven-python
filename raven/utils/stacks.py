@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 """
 raven.utils.stacks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,6 +47,8 @@ def get_lines_from_file(filename, lineno, context_lines, loader=None, module_nam
             source = None
         if source is not None:
             source = source.splitlines()
+
+    # 如果没有使用 loader, 则直接处理文件
     if source is None:
         try:
             f = open(filename, 'rb')
@@ -59,6 +62,7 @@ def get_lines_from_file(filename, lineno, context_lines, loader=None, module_nam
         if source is None:
             return None, None, None
 
+        # decoding源代码
         encoding = 'utf8'
         for line in source[:2]:
             # File coding may be specified. Match pattern from PEP-263
@@ -69,6 +73,7 @@ def get_lines_from_file(filename, lineno, context_lines, loader=None, module_nam
                 break
         source = [six.text_type(sline, encoding, 'replace') for sline in source]
 
+    # 获取相关的context code
     lower_bound = max(0, lineno - context_lines)
     upper_bound = min(lineno + 1 + context_lines, len(source))
 
@@ -183,27 +188,53 @@ def get_stack_info(frames, transformer=transform):
     We have to be careful here as certain implementations of the
     _Frame class do not contain the nescesary data to lookup all
     of the information we want.
+
+    返回结果: List Of FrameResult:
+
+    frame_result = {
+            'abs_path': abs_path,
+            'filename': filename,
+            'module': module_name or None,
+            'function': function or '<unknown>',
+            'lineno': lineno + 1,
+            'vars': transformer(f_locals),
+        }
+    if context_line is not None:
+        frame_result.update({
+            'pre_context': pre_context,
+            'context_line': context_line,
+            'post_context': post_context,
+        })
+
     """
     __traceback_hide__ = True  # NOQA
 
     results = []
-    for frame_info in frames:
-        # Old, terrible API
-        if isinstance(frame_info, (list, tuple)):
-            frame, lineno = frame_info
 
+    # 1. 如何理解frames呢?
+    for frame_info in frames:
+
+        # Old, terrible API
+        if isinstance(frame_info, (list, tuple)): # 似乎python2.7.3中的frames就是第一种格式
+            frame, lineno = frame_info
         else:
             frame = frame_info
             lineno = frame_info.f_lineno
 
+        # print frame, lineno
+
         # Support hidden frames
         f_locals = getattr(frame, 'f_locals', {})
+
+        # 局部变量不暴露
         if _getitem_from_frame(f_locals, '__traceback_hide__'):
+            print "__traceback_hide__"
             continue
 
         f_globals = getattr(frame, 'f_globals', {})
 
         f_code = getattr(frame, 'f_code', None)
+
         if f_code:
             abs_path = frame.f_code.co_filename
             function = frame.f_code.co_name
@@ -213,10 +244,13 @@ def get_stack_info(frames, transformer=transform):
 
         loader = _getitem_from_frame(f_globals, '__loader__')
         module_name = _getitem_from_frame(f_globals, '__name__')
+        # print "Loader: ", loader, "module_name: ", module_name
+        # Loader:  None module_name:  api.testing.test_alipay
 
         if lineno:
             lineno -= 1
 
+        # 1. 如果存在lineno和abs_path,  则读取Context相关的源码
         if lineno is not None and abs_path:
             pre_context, context_line, post_context = get_lines_from_file(abs_path, lineno, 5, loader, module_name)
         else:
@@ -224,6 +258,7 @@ def get_stack_info(frames, transformer=transform):
 
         # Try to pull a relative file path
         # This changes /foo/site-packages/baz/bar.py into baz/bar.py
+        # 2. 获取相对文件路径
         try:
             base_filename = sys.modules[module_name.split('.', 1)[0]].__file__
             filename = abs_path.split(base_filename.rsplit('/', 2)[0], 1)[-1][1:]
@@ -233,6 +268,7 @@ def get_stack_info(frames, transformer=transform):
         if not filename:
             filename = abs_path
 
+        # 3. 获取local的变量(便于分析函数的调用)
         if f_locals is not None and not isinstance(f_locals, dict):
             # XXX: Genshi (and maybe others) have broken implementations of
             # f_locals that are not actually dictionaries
