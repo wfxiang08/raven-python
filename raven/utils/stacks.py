@@ -87,10 +87,11 @@ def get_lines_from_file(filename, lineno, context_lines, loader=None, module_nam
         # 通过git获取相关的信息
         try:
             blame_lines = get_code_authors(filename)
-            for i in range(loader, upper_bound):
+            for i in range(lower_bound, upper_bound):
                 author = get_code_last_auth(blame_lines, i)
                 if author:
                     related_authors.add(author)
+            # print "作者: ", related_authors
         except:
             pass
 
@@ -113,11 +114,13 @@ def get_code_authors(filename):
 def get_code_last_auth(lines, index):
     # print "BLAME LINE: ", lines[index]
 
-    match = re.search("\s\((\w+)\s", lines[index])
+    match = re.search("\s\(([^ ]+)\s", lines[index])
     if match:
-        return match.group(1)
-    else:
-        return None
+        user = match.group(1)
+        if user != "Not":
+            return user
+
+    return None
 
 
 
@@ -238,6 +241,7 @@ def get_stack_info(frames, transformer=transform):
             'pre_context': pre_context,
             'context_line': context_line,
             'post_context': post_context,
+            'author_set': author_set,
         })
 
     """

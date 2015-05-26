@@ -388,6 +388,7 @@ class Client(object):
             'platform': PLATFORM_NAME,
         })
 
+        # print "Data: ", data
         return data
 
     def transform(self, data):
