@@ -467,7 +467,7 @@ class Client(object):
 
         data = self.build_msg(event_type, data, date, time_spent, extra, stack, tags=tags, **kwargs)
 
-        print "Data: ", data
+        # print "Data: ", data
 
         self.send(**data)
 
